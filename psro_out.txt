@@ -1,0 +1,21 @@
+/Users/vivikamartini/.matplotlib is not a writable directory
+Matplotlib created a temporary cache directory at /var/folders/z8/njygnrp90zjfhs08nv1hkf0w0000gn/T/matplotlib-enbpnjcl because there was an issue with the default path ({configdir}); it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+Matplotlib is building the font cache; this may take a moment.
+===== baseline design =====
+seeded attack policies: {'CHINA': 2, 'EUROPEAN UNION': 2, 'RUSSIA': 2, 'INDONESIA': 2, 'ADV. CARBON-PRICED CONDITIONAL JOINERS': 2}
+restricted-game NashConv of all-truthful: 20.30
+alpha=0.05 : truthful mass 0.000 | top: 0.21 on CHINA:A1 ,EUROPEAN:A1 ,RUSSIA:A1 ,INDONESI:A1 ,ADV. CAR:A1; 0.21 on CHINA:A1 ,EUROPEAN:A1 ,RUSSIA:A1 ,ADV. CAR:A1; 0.21 on CHINA:A1 ,EUROPEAN:A1 ,ADV. CAR:A1
+alpha=0.5  : truthful mass 0.000 | top: 0.25 on CHINA:A1 ,EUROPEAN:A1 ,RUSSIA:A1 ,INDONESI:A1 ,ADV. CAR:A1; 0.25 on CHINA:A1 ,EUROPEAN:A1 ,INDONESI:A1 ,ADV. CAR:A1; 0.25 on CHINA:A1 ,EUROPEAN:A1 ,RUSSIA:A1 ,ADV. CAR:A1
+alpha=5.0  : truthful mass 0.000 | top: 0.25 on CHINA:A1 ,EUROPEAN:A1 ,ADV. CAR:A1; 0.25 on CHINA:A1 ,EUROPEAN:A1 ,INDONESI:A1 ,ADV. CAR:A1; 0.25 on CHINA:A1 ,EUROPEAN:A1 ,RUSSIA:A1 ,ADV. CAR:A1
+PSRO round 1 added BR policies for: ['RUSSIA', 'INDONESIA']
+after expansion: truthful mass 0.000, restricted NashConv of truthful 20.30
+
+===== pool-cap guardrail (<= 150bn) =====
+seeded attack policies: {'CHINA': 2, 'EUROPEAN UNION': 2, 'RUSSIA': 2, 'INDONESIA': 2, 'ADV. CARBON-PRICED CONDITIONAL JOINERS': 2}
+restricted-game NashConv of all-truthful: 13.07
+alpha=0.05 : truthful mass 0.000 | top: 0.41 on CHINA:A1 ,EUROPEAN:A1 ,RUSSIA:A1 ,INDONESI:A1 ,ADV. CAR:A1; 0.41 on CHINA:A1 ,EUROPEAN:A1 ,INDONESI:A1 ,ADV. CAR:A1; 0.09 on CHINA:A1 ,EUROPEAN:A1 ,RUSSIA:A1 ,INDONESI:A1
+alpha=0.5  : truthful mass 0.000 | top: 0.50 on CHINA:A1 ,EUROPEAN:A1 ,INDONESI:A1 ,ADV. CAR:A1; 0.50 on CHINA:A1 ,EUROPEAN:A1 ,RUSSIA:A1 ,INDONESI:A1 ,ADV. CAR:A1; 0.00 on CHINA:A1 ,EUROPEAN:A1 ,INDONESI:A1
+alpha=5.0  : truthful mass 0.000 | top: 0.50 on CHINA:A1 ,EUROPEAN:A1 ,RUSSIA:A1 ,INDONESI:A1 ,ADV. CAR:A1; 0.50 on CHINA:A1 ,EUROPEAN:A1 ,INDONESI:A1 ,ADV. CAR:A1; 0.00 on CHINA:A1 ,EUROPEAN:A1 ,ADV. CAR:A1
+PSRO round 1 added BR policies for: ['RUSSIA', 'INDONESIA']
+after expansion: truthful mass 0.000, restricted NashConv of truthful 13.07
+

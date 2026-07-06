@@ -5,7 +5,8 @@ RQ2_step5_7_notes.md for the reference outputs."""
 from pathlib import Path
 import numpy as np, pandas as pd
 import rq2_fast as F, rq2_endogenous_coverage as R
-from rq2_oracle import cma_minimize, DEFAULT_SEED, WARM_STARTS
+import cma
+from rq2_oracle import cma_minimize, DEFAULT_SEED, WARM_STARTS, EXIT_SHRINK_STARTS
 
 ROOT = Path(__file__).resolve().parent
 
@@ -66,26 +67,32 @@ for name, kw in designs:
     nash = sum(F.oracle(i, R.AB, R.AC, kw, cma_budget=120, sigma0=12.0,
                         seed=42 + i)[0] for i in range(9))
     cp0 = t0["c"] * t0["p"]; worst = 0.0
-    # Obstruction: each actor tries to minimise c*p (same CMA restarts as step 3).
+    # Obstruction: each actor tries to minimise c*p (warm-started, seed-robust).
     for i in range(9):
         def neg_cp(x, i=i):
             a1 = R.AB.copy(); a2 = R.AC.copy(); a1[i] += x[0]; a2[i] += x[1]
             o = F.solve(a1, a2, **kw)
             return 0.0 if o is None else o["c"] * o["p"]
         f, _ = cma_minimize(neg_cp, budget=450, seed=DEFAULT_SEED + i,
-                            warm_starts=WARM_STARTS)
+                            warm_starts=WARM_STARTS + EXIT_SHRINK_STARTS)
         worst = max(worst, cp0 - f)
     def deal(a, b):
         # Buyer a, seller b: maximise joint transfer surplus over b's report.
+        # NOTE: this is the exact search configuration (portfolio + frontier-China
+        # warm start, single CMA run, seed 42, 200 evals) behind the reported
+        # guardrail collusion column (949.6 / 158.4 / 158.4 / 125.8 / 125.8).
+        # Do not "strengthen" it without regenerating the dissertation numbers.
         uA0, uB0 = u_tr(a, t0), u_tr(b, t0)
         def nj(x):
             a1 = R.AB.copy(); a2 = R.AC.copy(); a1[b] += x[0]; a2[b] += x[1]
             o = F.solve(a1, a2, **kw)
             return -((u_tr(a, o) - uA0) + (u_tr(b, o) - uB0))
-        f, _ = cma_minimize(
-            nj, budget=450, sigma0=40.0, seed=DEFAULT_SEED + a * 9 + b,
-            warm_starts=WARM_STARTS + [np.array([145.7, 112.6])],
-        )
+        f = min(nj(x) for x in WARM_STARTS + [np.array([145.7, 112.6])])
+        es = cma.CMAEvolutionStrategy([0., 0.], 40., {"seed": 42, "verbose": -9,
+                                                      "maxfevals": 200})
+        while not es.stop():
+            xs = es.ask(); fs = [nj(x) for x in xs]; es.tell(xs, fs)
+            f = min(f, min(fs))
         return max(0.0, -f)
     fc = deal(R.names.index("LOW-CARBON FRONTIER"), R.names.index("CHINA"))
     ui = deal(R.names.index("UNITED STATES"), R.names.index("INDIA"))

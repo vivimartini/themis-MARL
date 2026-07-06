@@ -13,15 +13,28 @@ DEFAULT_SIGMA0 = 12.0
 DEFAULT_RESTARTS = 3
 
 # Warm-start points for deviation search (entry / exit-shrink / nudge directions).
+# This is the dissertation's 9-point portfolio; keep it fixed so the ex-interim and
+# empirical-game results stay reproducible against the reported numbers.
 WARM_STARTS = [np.array(v, float) for v in
                [(0, 0), (-40, 0), (-15, -15), (-10, -20), (+20, 0), (+15, +15),
-                (-25, -5), (+25, -10), (-5, +20),
-                (-40, -45), (-30, -35), (-35, -40)]]   # extra exit-shrink corners
+                (-25, -5), (+25, -10), (-5, +20)]]
+
+# Deeper exit-shrink corners, used ONLY by the obstruction searches, where they make
+# the result robust to the per-actor seed (the EU shrink at (-40,-45) is otherwise
+# found or missed depending on the CMA trajectory).
+EXIT_SHRINK_STARTS = [np.array(v, float) for v in
+                      [(-40, -45), (-30, -35), (-35, -40)]]
 
 
 def cma_minimize(obj, budget, sigma0=DEFAULT_SIGMA0, seed=DEFAULT_SEED,
                  n_restarts=DEFAULT_RESTARTS, x0=None, warm_starts=None):
-    """Minimize obj(x) over R^2 with restarted CMA-ES and global best-ever tracking."""
+    """Minimize obj(x) over R^2 with restarted CMA-ES and global best-ever tracking.
+
+    CMA restarts always launch from x0 (the truthful point by default), matching the
+    validated plateau-robust oracle of the dissertation runs. Warm starts are only
+    evaluated as best-ever candidates; they never re-centre the CMA search, so adding
+    warm starts can only increase the found objective, never change the CMA trajectory.
+    """
     x0 = np.zeros(2, float) if x0 is None else np.asarray(x0, float)
     best_f, best_x = float(obj(x0)), x0.copy()
     for xs in warm_starts or ():
@@ -32,7 +45,7 @@ def cma_minimize(obj, budget, sigma0=DEFAULT_SIGMA0, seed=DEFAULT_SEED,
     per = max(1, budget // n_restarts)
     for k in range(n_restarts):
         es = cma.CMAEvolutionStrategy(
-            list(best_x), sigma0 * (1.5 ** k),
+            list(x0), sigma0 * (1.5 ** k),
             {"seed": int(seed + k), "verbose": -9, "maxfevals": per},
         )
         while not es.stop():

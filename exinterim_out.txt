@@ -1,0 +1,33 @@
+/Users/vivikamartini/.matplotlib is not a writable directory
+Matplotlib created a temporary cache directory at /var/folders/z8/njygnrp90zjfhs08nv1hkf0w0000gn/T/matplotlib-c50vbipj because there was an issue with the default path ({configdir}); it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+Matplotlib is building the font cache; this may take a moment.
+                                 actor  mean  median  95th %>0 dominant attack
+                                 CHINA  3.33    1.87  9.34 68%     exit-shrink
+                         UNITED STATES  1.23    0.00  9.26 34%     exit-shrink
+                        EUROPEAN UNION  2.38    2.24  6.23 59%     exit-shrink
+                                 INDIA  1.24    0.00  1.78 41%           nudge
+                                RUSSIA  3.95    3.59  9.44 92%           entry
+                             INDONESIA  5.13    5.70  9.14 87%           entry
+ADV. CARBON-PRICED CONDITIONAL JOINERS  1.03    0.53  4.09 75%     exit-shrink
+                   LOW-CARBON FRONTIER  0.90    0.00  2.65 28%     exit-shrink
+                  HYDROCARBON RENTIERS  0.87    0.05  4.60 51%           entry
+ex-interim NashConv: mean 20.06, median 18.29, 5-95%: 8.2-35.2
+
+saved /Users/vivikamartini/Desktop/themis-MARL/exA_final.npz
+       design  endog NashConv max obstruction  frontier-China  US-India
+     baseline           20.30           68.9%           949.6      0.00
+      T- <= 1           16.92           68.9%           158.4     15.84
+     c >= 0.5           20.18           74.1%           158.4      0.00
+pool <= 150bn           13.07           68.9%           143.0     15.84
+    all three           12.95           74.1%           143.0     15.84
+                                 actor  hybrid regret  random regret
+                                 CHINA          2.952          3.550
+                         UNITED STATES          0.000          0.000
+                        EUROPEAN UNION          4.812          4.812
+                                 INDIA          0.000          0.000
+                                RUSSIA          2.731          2.895
+                             INDONESIA          9.155          9.200
+ADV. CARBON-PRICED CONDITIONAL JOINERS          0.650          0.650
+                   LOW-CARBON FRONTIER          0.000          0.000
+                  HYDROCARBON RENTIERS          0.000          1.234
+NashConv: hybrid 20.30 vs random 22.34

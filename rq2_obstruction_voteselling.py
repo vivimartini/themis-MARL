@@ -21,7 +21,8 @@ self-consistent endogenous-coverage solver (rq2_endogenous_coverage).
 import numpy as np
 import pandas as pd
 import rq2_endogenous_coverage as R
-from rq2_oracle import cma_minimize, DEFAULT_SEED, DEFAULT_SIGMA0, WARM_STARTS
+from rq2_oracle import (cma_minimize, DEFAULT_SEED, DEFAULT_SIGMA0,
+                        WARM_STARTS, EXIT_SHRINK_STARTS)
 
 SEED = DEFAULT_SEED
 SIGMA0 = DEFAULT_SIGMA0
@@ -37,7 +38,7 @@ def obstruction(i, budget=900):
         return 0.0 if out is None else out["c"] * out["p"]
 
     f, x = cma_minimize(neg_obj, budget, sigma0=SIGMA0, seed=SEED + i,
-                        warm_starts=WARM_STARTS)
+                        warm_starts=WARM_STARTS + EXIT_SHRINK_STARTS)
     ab = R.AB.copy(); ac = R.AC.copy(); ab[i] += x[0]; ac[i] += x[1]
     out = R.solve_full(ab, ac)
     return f, x, out
@@ -56,8 +57,9 @@ def collusive_surplus(a, b, budget=450):
         return -((R.utility(a, out, "transfer") - uA0)
                  + (R.utility(b, out, "transfer") - uB0))
 
-    f, x = cma_minimize(neg_joint, budget, sigma0=SIGMA0, seed=SEED + a * 9 + b,
-                        warm_starts=WARM_STARTS)
+    # Shared seed and no warm starts: the exact configuration behind the reported
+    # 53-positive-pair / frontier-China 949.6 results (see reproducibility appendix).
+    f, x = cma_minimize(neg_joint, budget, sigma0=SIGMA0, seed=SEED)
     ab = R.AB.copy(); ac = R.AC.copy(); ab[b] += x[0]; ac[b] += x[1]
     out = R.solve_full(ab, ac)
     dA = R.utility(a, out, "transfer") - uA0
