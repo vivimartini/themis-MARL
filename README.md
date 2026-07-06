@@ -111,11 +111,26 @@ misparses `~` inside them.
   distributional work (ex-interim, guardrails, empirical game) uses the 25-point
   coarse grid. The two agree at the baseline (20.3 coarse vs 19.6 fine).
 
-### Not in this repository
+## Where the main Themis engine lives
 
-Three RQ1 scripts referenced in the dissertation's reproducibility appendix live in
-the main dissertation/dashboard repository, not here: `themis_engine.py` (grounded
-operating point), `mc_scenario_prior.py` (generates `mc_p.npz`), and
-`reproduce_carl_archetypes.py` (validation against the published €20.97 archetype
-operating point). Their outputs needed by this repo (`mc_p.npz`,
-`actors_baseline.csv`) are committed here.
+The reference Themis engine (`themis_engine.py`) and the RQ1 scripts live in the
+dashboard repository, **github.com/vivimartini/themis-dashboard-v2**, not here:
+
+- `themis_engine.py` — the reference mechanism implementation and the grounded
+  truthful operating point (€26.70, 87% coverage)
+- `mc_scenario_prior.py` — the Monte Carlo scenario prior (generates `mc_p.npz`)
+- `reproduce_carl_archetypes.py` — validation against the published €20.97
+  seven-archetype operating point
+
+**This repository does not depend on any of them to run.** The RQ2 experiments use
+their own self-contained, vectorised reimplementation of the mechanism —
+`solve_full` in `rq2_endogenous_coverage.py` (fine grid) and `solve` in
+`rq2_fast.py` (coarse grid) — because the best-response oracles need millions of
+solver evaluations and the enumeration had to be vectorised for speed. The
+reimplementation is validated against the engine at the truthful point: both
+return p = €26.70, coverage 0.8686, T⁺ = 0.24, T⁻ = 0.3417 with the same six
+members (checked by `validate_rq2.py`).
+
+The two engine outputs this repo consumes as inputs are committed here:
+`actors_baseline.csv` (the calibrated preference layer) and `mc_p.npz` (the RQ1
+Monte Carlo draws, used only for Figure 3.1).
