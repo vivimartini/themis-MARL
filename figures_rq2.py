@@ -135,6 +135,8 @@ for lab, c, p, col, mk in pts:
     ax.scatter([c], [p], color=col, marker=mk, s=40, zorder=3)
     ax.annotate(lab, (c, p), textcoords="offset points", xytext=(6, 4),
                 fontsize=7, color=col)
+ax.axvline(0.5, color="#8e44ad", lw=0.9, ls="--")
+ax.text(0.503, 152, "coverage floor $c\\geq 0.5$\n(guarded designs)", fontsize=6.5, color="#8e44ad")
 ax.set_xlabel("modelled coverage c"); ax.set_ylabel("price p (EUR/tCO$_2$e)")
 ax.set_xlim(0.05, 1.0); ax.set_ylim(0, 160)
 fig.tight_layout(); fig.savefig(OUT + "fig_regime_map.pdf"); plt.close(fig)
@@ -161,3 +163,99 @@ fig.tight_layout(); fig.savefig(OUT + "fig_alpharank.pdf",
                                 bbox_inches="tight"); plt.close(fig)
 
 print("figures written to", OUT)
+
+# ================= second figure set (presentation feedback, Jul 2026) =========
+
+# ---- Fig 8: RQ2 pipeline diagram (methods figure)
+fig, ax = plt.subplots(figsize=(6.6, 2.4)); ax.axis("off")
+stages = ["Country data +\ncalibrated params", "Preference layer\n$p_i(c,T)$",
+          "Themis environment\n$\\mathcal{M}(r)$: 512-coalition\nself-consistent solver",
+          "Best-response oracle\nportfolio + random + CMA-ES",
+          "Regret / NashConv\n+ attack labels",
+          "Empirical game\n$\\alpha$-Rank meta-solver"]
+xs = np.linspace(0.02, 0.98, len(stages))
+for k, (x, s) in enumerate(zip(xs, stages)):
+    ax.annotate(s, (x, 0.5), ha="center", va="center", fontsize=7,
+                bbox=dict(boxstyle="round,pad=0.35",
+                          fc="#eaf1f5" if k in (0, 1) else "#fdf2ee" if k >= 3
+                          else "#f0f0f0", ec="#888", lw=0.8))
+for a, b in zip(xs[:-1], xs[1:]):
+    ax.annotate("", xy=(b - 0.055, 0.5), xytext=(a + 0.055, 0.5),
+                arrowprops=dict(arrowstyle="->", color="#555", lw=1.0))
+ax.annotate("guardrail ablations rerun this loop under design constraints",
+            (0.5, 0.06), ha="center", fontsize=7, color="#666")
+fig.savefig(OUT + "fig_pipeline.pdf", bbox_inches="tight"); plt.close(fig)
+
+# ---- Fig 9: actor-level exposure heatmap (synthesis across experiments)
+# cols: endogenous peaked regret (fine grid, seed 42); obstruction damage %
+# (rq2_obstruction_voteselling.py); entry / exit-shrink % of worlds (exA_final.npz)
+A = np.load("/home/claude/exA_final.npz", allow_pickle=True)
+REG, MODE = A["REG"], A["MODE"]
+regret = [3.51, 0.00, 4.86, 0.04, 0.00, 9.21, 0.65, 0.00, 1.25]
+obstr  = [68.9, 21.0, 17.5, 22.5, 0.0, 0.0, 19.4, 3.7, 0.0]
+entry  = []; exitsh = []
+for i in range(9):
+    pos = REG[:, i] > 0.01
+    entry.append(100 * np.mean([(m == "entry") for m in MODE[pos, i]]) * pos.mean()
+                 if pos.any() else 0.0)
+    exitsh.append(100 * np.mean([(m == "exit-shrink") for m in MODE[pos, i]]) * pos.mean()
+                  if pos.any() else 0.0)
+cols = {"regret\n(peaked)": regret, "obstruction\ndamage %": obstr,
+        "entry\n% worlds": entry, "exit-shrink\n% worlds": exitsh}
+M9 = np.array([v for v in cols.values()], float).T
+Mn = M9 / M9.max(0)                                  # column-normalised intensity
+fig, ax = plt.subplots(figsize=(4.8, 3.4))
+im = ax.imshow(Mn, cmap="Reds", aspect="auto", vmin=0, vmax=1)
+ax.set_xticks(range(4)); ax.set_xticklabels(cols.keys(), fontsize=7)
+ax.set_yticks(range(9)); ax.set_yticklabels(ACTORS, fontsize=8)
+for i in range(9):
+    for j in range(4):
+        ax.text(j, i, f"{M9[i,j]:.1f}", ha="center", va="center", fontsize=6.5,
+                color="white" if Mn[i, j] > 0.55 else "#333")
+fig.tight_layout(); fig.savefig(OUT + "fig_exposure_heatmap.pdf"); plt.close(fig)
+
+# ---- Fig 10: obstruction, damage vs private payoff [rq2_obstruction_voteselling.py]
+names_o = ["China", "India", "US", "Adv. joiners", "EU", "Frontier"]
+dmg = [68.9, 22.5, 21.0, 19.4, 17.5, 3.7]
+dpay = [27.0, -32.5, 68.8, 29.9, 3.5, -47.0]        # transfer dU at worst report
+y = np.arange(len(names_o))[::-1]
+fig, ax = plt.subplots(figsize=(5.8, 2.9))
+ax.barh(y + 0.2, dmg, height=0.38, color="#c0392b", label="damage to $c\\,p$ (%)")
+ax.barh(y - 0.2, dpay, height=0.38, color="#4a7c9b",
+        label="own transfer payoff change (EUR/cap)")
+ax.axvline(0, color="k", lw=0.8)
+ax.set_yticks(y); ax.set_yticklabels(names_o)
+ax.legend(frameon=False, fontsize=7, loc="lower right")
+ax.annotate("privately profitable sabotage", xy=(30, 5.2), fontsize=7,
+            color="#c0392b")
+ax.annotate("self-defeating", xy=(-46, 0.9), fontsize=7, color="#4a7c9b")
+fig.tight_layout(); fig.savefig(OUT + "fig_obstruction.pdf"); plt.close(fig)
+
+# ---- Fig 11: vote-selling network (true purchases only; 51 aligned pairs omitted)
+fig, ax = plt.subplots(figsize=(4.6, 4.0)); ax.axis("off"); ax.set_aspect("equal")
+th = np.linspace(0, 2 * np.pi, 10)[:-1] + np.pi / 2
+px, py = np.cos(th), np.sin(th)
+for k, n in enumerate(ACTORS):
+    ax.scatter(px[k], py[k], s=240, color="#eaf1f5", edgecolor="#888", zorder=2)
+    ax.text(px[k] * 1.22, py[k] * 1.22, n, ha="center", va="center", fontsize=7)
+def arrow(a, b, w, lab):
+    ax.annotate("", xy=(px[b] * 0.9, py[b] * 0.9), xytext=(px[a] * 0.9, py[a] * 0.9),
+                arrowprops=dict(arrowstyle="-|>", color="#8e44ad", lw=w,
+                                shrinkA=10, shrinkB=10))
+    mx, my = (px[a] + px[b]) / 2, (py[a] + py[b]) / 2
+    ax.text(mx, my + 0.07, lab, fontsize=7, color="#8e44ad", ha="center")
+arrow(ACTORS.index("Frontier"), ACTORS.index("China"), 3.0, "surplus 949.6")
+arrow(ACTORS.index("US"), ACTORS.index("India"), 0.9, "1.48")
+ax.set_xlim(-1.55, 1.55); ax.set_ylim(-1.5, 1.55)
+fig.savefig(OUT + "fig_voteselling_network.pdf", bbox_inches="tight"); plt.close(fig)
+
+# ---- Fig 12: optimizer validation [rq2_exinterim_guardrails.py episode]
+fig, ax = plt.subplots(figsize=(3.8, 2.8))
+labs = ["gated fast\noracle", "random\nsearch", "corrected\nhybrid", "fine-grid\nreference"]
+vals = [3.60, 22.34, 20.30, 19.52]
+ax.bar(labs, vals, color=["#c0392b", "#7f8c8d", "#4a7c9b", "#2c3e50"], width=0.6)
+for k, v in enumerate(vals):
+    ax.text(k, v + 0.4, f"{v:.1f}", ha="center", fontsize=8)
+ax.set_ylabel("NashConv (coarse grid, equal budget)")
+fig.tight_layout(); fig.savefig(OUT + "fig_optimizer.pdf"); plt.close(fig)
+print("second figure set written")
