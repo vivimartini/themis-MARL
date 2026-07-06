@@ -21,15 +21,15 @@ the utility-definition question empirical rather than rhetorical.
 """
 import numpy as np
 import pandas as pd
-import cma
+from rq2_oracle import cma_minimize, DEFAULT_SEED, DEFAULT_SIGMA0, WARM_STARTS
 
 # ---------------------------------------------------------------- truthful setup
 EBAR = 6.6
 
 T_PLUS = 0.24            # truthful contributor rate, fraction of price
 T_MINUS = 0.3417         # truthful beneficiary rate, fraction of price
-SEED = 42            # nonzero: cma treats seed=0 as unseeded
-CMA_SIGMA0 = 12.0
+SEED = DEFAULT_SEED
+CMA_SIGMA0 = DEFAULT_SIGMA0
 CMA_BUDGET = 900          # objective evaluations per actor, split over restarts
 
 df = pd.read_csv("actors_baseline.csv")
@@ -69,9 +69,9 @@ def quantile_price(reports):
     tie-safe at the exact coverage boundary (the from-below cumsum construction
     misassigns the pivot when non-member mass equals 1-c* to machine precision).
     """
-    order = np.argsort(-reports, kind="stable")          # descending
+    order = np.argsort(-reports, kind="stable")          # heaviest reporters first
     cum = np.cumsum(w[order])
-    k = np.searchsorted(cum, C_STAR - 1e-12)
+    k = np.searchsorted(cum, C_STAR - 1e-12)           # first index reaching c*
     return reports[order[k]]
 
 
@@ -108,22 +108,13 @@ def best_response(i, kind, sigma0=CMA_SIGMA0, budget=CMA_BUDGET, seed=SEED,
 
     def neg_u(x):
         r = reports.copy()
-        r[i] = scalar_report(i, x[0], x[1])
+        r[i] = scalar_report(i, x[0], x[1])   # only actor i deviates; others fixed
         return -utility(i, r, kind)
 
-    best_f, best_x = -u_truth, np.zeros(2)          # truthful is always feasible
-    per = max(1, budget // n_restarts)
-    for k in range(n_restarts):
-        es = cma.CMAEvolutionStrategy([0.0, 0.0], sigma0 * (1.5 ** k),
-                                      {"seed": seed + k, "verbose": -9,
-                                       "maxfevals": per})
-        while not es.stop():
-            xs = es.ask()
-            fs = [neg_u(x) for x in xs]
-            es.tell(xs, fs)
-            j = int(np.argmin(fs))
-            if fs[j] < best_f:
-                best_f, best_x = fs[j], np.array(xs[j])
+    best_f, best_x = cma_minimize(
+        neg_u, budget, sigma0=sigma0, seed=seed, n_restarts=n_restarts,
+        warm_starts=WARM_STARTS,
+    )
     u_best = -best_f
     regret = max(0.0, u_best - u_truth)
     r_best = scalar_report(i, best_x[0], best_x[1])

@@ -18,11 +18,11 @@ identical to the validated step-1 oracle. regret_i = max(0, u_best - u_truth).
 """
 import numpy as np
 import pandas as pd
-import cma
+from rq2_oracle import cma_minimize, DEFAULT_SEED, DEFAULT_SIGMA0, WARM_STARTS
 
 EBAR = 6.6
-SEED = 42            # nonzero: cma treats seed=0 as unseeded
-SIGMA0 = 12.0
+SEED = DEFAULT_SEED
+SIGMA0 = DEFAULT_SIGMA0
 BUDGET = 900            # full-solver evaluations per actor, split over restarts
 RESTARTS = 3
 
@@ -39,6 +39,8 @@ N = 9
 contrib = e > EBAR
 
 # ------------------------------------------------ vectorised self-consistent solver
+# Enumerate all 512 coalitions; keep only those with >=2 members, at least one
+# contributor and one beneficiary (otherwise T+ or T- is undefined).
 masks = []
 for m in range(1, 2 ** N):
     mem = np.array([(m >> j) & 1 for j in range(N)], bool)
@@ -62,9 +64,9 @@ def solve_full(ab, ac):
     """Endogenous-coverage operating point for a full report profile (ab, ac)."""
     prefs = np.maximum(0, ab[None, None, :] + ac[None, None, :] * COV[:, None, None]
                        + AT[None, None, :] * TAU)
-    price = np.where(MB, prefs, BIG).min(2)
-    nonmax = np.where(~MB, prefs, -BIG).max(2)
-    ok = (price > 0) & (nonmax < price + 0.01)
+    price = np.where(MB, prefs, BIG).min(2)          # min member willingness
+    nonmax = np.where(~MB, prefs, -BIG).max(2)       # max non-member willingness
+    ok = (price > 0) & (nonmax < price + 0.01)       # self-consistency (+ slack)
     obj = np.where(ok, COV[:, None] * price, -1.0)
     k, t = np.unravel_index(np.argmax(obj), obj.shape)
     if obj[k, t] < 0:
@@ -81,9 +83,10 @@ def true_willingness(i, c, Tplus, Tminus):
 
 def utility(i, out, kind):
     if out is None:
-        return -1e6                                       # mechanism failure: avoid
+        return -1e6                                       # invalid: never chosen as best
     p, c, Tp, Tm = out["p"], out["c"], out["Tplus"], out["Tminus"]
     if kind == "peaked":
+        # Target willingness moves with the realised (c, T) — unlike the control.
         return -abs(p - true_willingness(i, c, Tp, Tm))
     if kind == "transfer":
         if not out["members"][i]:
@@ -106,19 +109,10 @@ def best_response(i, kind, sigma0=SIGMA0, budget=BUDGET, seed=SEED,
         ab[i] += x[0]; ac[i] += x[1]
         return -utility(i, solve_full(ab, ac), kind)
 
-    best_f, best_x = -u_truth, np.zeros(2)
-    per = max(1, budget // n_restarts)
-    for k in range(n_restarts):
-        es = cma.CMAEvolutionStrategy([0.0, 0.0], sigma0 * (1.5 ** k),
-                                      {"seed": seed + k, "verbose": -9,
-                                       "maxfevals": per})
-        while not es.stop():
-            xs = es.ask()
-            fs = [neg_u(x) for x in xs]
-            es.tell(xs, fs)
-            j = int(np.argmin(fs))
-            if fs[j] < best_f:
-                best_f, best_x = fs[j], np.array(xs[j])
+    best_f, best_x = cma_minimize(
+        neg_u, budget, sigma0=sigma0, seed=seed, n_restarts=n_restarts,
+        warm_starts=WARM_STARTS,
+    )
     u_best = -best_f
     return max(0.0, u_best - u_truth), best_x, u_truth, u_best
 

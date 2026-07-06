@@ -20,28 +20,11 @@ self-consistent endogenous-coverage solver (rq2_endogenous_coverage).
 """
 import numpy as np
 import pandas as pd
-import cma
 import rq2_endogenous_coverage as R
+from rq2_oracle import cma_minimize, DEFAULT_SEED, DEFAULT_SIGMA0, WARM_STARTS
 
-SEED = 42
-SIGMA0 = 12.0
-
-
-def _search(neg_obj, budget, sigma0=SIGMA0, seed=SEED, n_restarts=3):
-    best_f, best_x = neg_obj(np.zeros(2)), np.zeros(2)
-    per = max(1, budget // n_restarts)
-    for k in range(n_restarts):
-        es = cma.CMAEvolutionStrategy([0.0, 0.0], sigma0 * (1.5 ** k),
-                                      {"seed": seed + k, "verbose": -9,
-                                       "maxfevals": per})
-        while not es.stop():
-            xs = es.ask()
-            fs = [neg_obj(x) for x in xs]
-            es.tell(xs, fs)
-            j = int(np.argmin(fs))
-            if fs[j] < best_f:
-                best_f, best_x = fs[j], np.array(xs[j])
-    return best_f, best_x
+SEED = DEFAULT_SEED
+SIGMA0 = DEFAULT_SIGMA0
 
 
 # ------------------------------------------------------------------ obstruction
@@ -53,7 +36,8 @@ def obstruction(i, budget=900):
         out = R.solve_full(ab, ac)
         return 0.0 if out is None else out["c"] * out["p"]
 
-    f, x = _search(neg_obj, budget)
+    f, x = cma_minimize(neg_obj, budget, sigma0=SIGMA0, seed=SEED + i,
+                        warm_starts=WARM_STARTS)
     ab = R.AB.copy(); ac = R.AC.copy(); ab[i] += x[0]; ac[i] += x[1]
     out = R.solve_full(ab, ac)
     return f, x, out
@@ -67,12 +51,13 @@ def collusive_surplus(a, b, budget=450):
 
     def neg_joint(x):
         ab = R.AB.copy(); ac = R.AC.copy()
-        ab[b] += x[0]; ac[b] += x[1]
+        ab[b] += x[0]; ac[b] += x[1]          # only the seller misreports
         out = R.solve_full(ab, ac)
         return -((R.utility(a, out, "transfer") - uA0)
                  + (R.utility(b, out, "transfer") - uB0))
 
-    f, x = _search(neg_joint, budget)
+    f, x = cma_minimize(neg_joint, budget, sigma0=SIGMA0, seed=SEED + a * 9 + b,
+                        warm_starts=WARM_STARTS)
     ab = R.AB.copy(); ac = R.AC.copy(); ab[b] += x[0]; ac[b] += x[1]
     out = R.solve_full(ab, ac)
     dA = R.utility(a, out, "transfer") - uA0
@@ -113,6 +98,7 @@ if __name__ == "__main__":
             if s > 1e-6:
                 rows.append((R.names[a], R.names[b], round(s, 2), round(dA, 2),
                              round(dB, 2),
+                             # dB >= 0: seller already wants to lie; no side payment.
                              "aligned (no bribe needed)" if dB >= -1e-9
                              else f"purchase, min bribe {-dB:.2f}"))
     if rows:

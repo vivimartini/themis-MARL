@@ -1,9 +1,13 @@
 """Dissertation figures for RQ1 (one) and RQ2 (six). All values are outputs of the
 seeded scripts named in each figure's provenance comment; distributional data are
 read from the saved arrays. Regenerate everything with: python3 figures_rq2.py
-Requires: mc_p.npz (from mc_scenario_prior.py draws) and exA_final.npz (from the
-ex-interim run in rq2_exinterim_guardrails.py).
+
+Requires (in the repo root, or set RQ2_DATA):
+  mc_p.npz       — from mc_scenario_prior.py
+  exA_final.npz  — from rq2_exinterim_guardrails.py (experiment A)
 """
+import os
+from pathlib import Path
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -11,8 +15,11 @@ import matplotlib.pyplot as plt
 
 plt.rcParams.update({"font.size": 9, "axes.spines.top": False,
                      "axes.spines.right": False, "figure.dpi": 150})
-OUT = "/mnt/user-data/outputs/figures/"
-import os; os.makedirs(OUT, exist_ok=True)
+
+ROOT = Path(__file__).resolve().parent
+DATA = Path(os.environ.get("RQ2_DATA", ROOT))
+OUT = Path(os.environ.get("RQ2_FIGURES", ROOT / "figures"))
+OUT.mkdir(parents=True, exist_ok=True)
 
 ACTORS = ["China", "US", "EU", "India", "Russia", "Indonesia",
           "Adv. joiners", "Frontier", "Rentiers"]
@@ -20,7 +27,7 @@ MODE_COLOR = {"entry": "#2a7fba", "exit-shrink": "#c0392b",
               "extortion": "#8e44ad", "nudge": "#7f8c8d", "none": "#bdc3c7"}
 
 # ---- Fig 1 (RQ1): MC operating-price distribution [mc_scenario_prior.py, seed 0]
-d = np.load("/home/claude/mc_p.npz")
+d = np.load(DATA / "mc_p.npz")
 fig, ax = plt.subplots(figsize=(5.6, 3.0))
 ax.hist(d["p"], bins=60, color="#4a7c9b", alpha=0.85)
 ax.axvline(26.70, color="k", lw=1.2, ls="--")
@@ -30,20 +37,20 @@ ax.text(12.3, ax.get_ylim()[1] * 0.92, "published €20.97", fontsize=8,
         color="#c0392b")
 ax.set_xlabel("operating price $p^*$ (EUR/tCO$_2$e)")
 ax.set_ylabel("draws")
-fig.tight_layout(); fig.savefig(OUT + "fig_mc_pstar_hist.pdf"); plt.close(fig)
+fig.tight_layout(); fig.savefig(OUT / "fig_mc_pstar_hist.pdf"); plt.close(fig)
 
 # ---- Fig 2 (RQ2 headline): fixed vs endogenous NashConv
-# [rq2_fixed_coverage_control.py / rq2_endogenous_coverage.py, seed 42, fine grid]
+# Hard-coded from rq2_fixed_coverage_control / rq2_endogenous_coverage (seed 42).
 fig, ax = plt.subplots(figsize=(3.4, 3.0))
 ax.bar(["fixed coverage\n(DSIC control)", "endogenous\ncoverage"],
        [0.0, 19.52], color=["#4a7c9b", "#c0392b"], width=0.55)
 ax.set_ylabel("NashConv (peaked domain)")
 ax.text(0, 0.4, "0.0000", ha="center", fontsize=9)
 ax.text(1, 19.9, "19.52", ha="center", fontsize=9)
-fig.tight_layout(); fig.savefig(OUT + "fig_nashconv_headline.pdf"); plt.close(fig)
+fig.tight_layout(); fig.savefig(OUT / "fig_nashconv_headline.pdf"); plt.close(fig)
 
 # ---- Fig 3: regret geography at the point calibration (fine grid)
-# [rq2_endogenous_coverage.py, seed 42]; colors = attack mode
+# Actor order matches ACTORS below; bar colour = dominant attack mode.
 REGRETS = {"Indonesia": (9.21, "entry"), "EU": (4.86, "exit-shrink"),
            "China": (3.51, "exit-shrink"), "Rentiers": (1.25, "entry"),
            "Adv. joiners": (0.65, "exit-shrink"), "India": (0.04, "nudge"),
@@ -58,15 +65,14 @@ ax.set_xlabel("best-response regret (peaked domain)")
 for m, c in [("entry", MODE_COLOR["entry"]),
              ("exit-shrink", MODE_COLOR["exit-shrink"]),
              ("nudge", MODE_COLOR["nudge"])]:
-    ax.bar(0, 0, color=c, label=m)
+    ax.bar(0, 0, color=c, label=m)   # invisible bars to build the legend
 ax.legend(frameon=False, fontsize=8, loc="lower right")
 ax.annotate("pivots (US, India): locked in", xy=(0.15, 2.6), fontsize=8,
             color="#555")
-fig.tight_layout(); fig.savefig(OUT + "fig_regret_geography.pdf"); plt.close(fig)
+fig.tight_layout(); fig.savefig(OUT / "fig_regret_geography.pdf"); plt.close(fig)
 
 # ---- Fig 4: ex-interim exploitability over the scenario prior
-# [rq2_exinterim_guardrails.py, hybrid oracle, 120 worlds, coarse grid]
-A = np.load("/home/claude/exA_final.npz", allow_pickle=True)
+A = np.load(DATA / "exA_final.npz", allow_pickle=False)
 REG, MODE = A["REG"], A["MODE"]
 fig, axes = plt.subplots(1, 2, figsize=(6.4, 2.9),
                          gridspec_kw={"width_ratios": [1.1, 1.4]})
@@ -80,6 +86,7 @@ share = np.zeros((9, len(modes)))
 for i in range(9):
     pos = REG[:, i] > 0.01
     for k, m in enumerate(modes):
+        # Unconditional % of worlds: P(regret>0.01) × P(mode|regret>0.01).
         share[i, k] = 100 * np.mean([mm == m for mm in MODE[pos, i]]) * pos.mean() \
             if pos.any() else 0.0
 left = np.zeros(9)
@@ -90,9 +97,10 @@ for k, m in enumerate(modes):
 axes[1].set_yticks(yy); axes[1].set_yticklabels(ACTORS, fontsize=8)
 axes[1].set_xlabel("% of worlds attacked, by mode")
 axes[1].legend(frameon=False, fontsize=7, ncol=2)
-fig.tight_layout(); fig.savefig(OUT + "fig_exinterim.pdf"); plt.close(fig)
+fig.tight_layout(); fig.savefig(OUT / "fig_exinterim.pdf"); plt.close(fig)
 
 # ---- Fig 5: guardrail ablation [rq2_exinterim_guardrails.py, coarse grid]
+# Tabulated headline numbers from experiment B (not recomputed here).
 designs = ["baseline", "T$^-\\!\\leq\\!1$", "c$\\geq$0.5", "pool cap", "all three"]
 nashv = [20.30, 16.92, 20.18, 13.07, 12.95]
 obstr = [68.9, 68.9, 74.1, 68.9, 74.1]
@@ -110,11 +118,10 @@ axes[1].axhline(68.9, color="#999", lw=0.7, ls=":")
 fig.suptitle("no guardrail distorts the truthful operating point; "
              "the floor worsens obstruction; collusion is attenuated, not closed",
              fontsize=8, y=1.02)
-fig.tight_layout(); fig.savefig(OUT + "fig_guardrails.pdf",
+fig.tight_layout(); fig.savefig(OUT / "fig_guardrails.pdf",
                                 bbox_inches="tight"); plt.close(fig)
 
 # ---- Fig 6: regime map on the (c, p) plane with c*p iso-contours
-# regimes verified in rq2_endogenous_coverage / rq2_obstruction_voteselling
 fig, ax = plt.subplots(figsize=(5.6, 3.6))
 cc = np.linspace(0.05, 1.0, 300); 
 for lev in [5, 10, 23.2, 40, 59.8]:
@@ -139,7 +146,7 @@ ax.axvline(0.5, color="#8e44ad", lw=0.9, ls="--")
 ax.text(0.503, 152, "coverage floor $c\\geq 0.5$\n(guarded designs)", fontsize=6.5, color="#8e44ad")
 ax.set_xlabel("modelled coverage c"); ax.set_ylabel("price p (EUR/tCO$_2$e)")
 ax.set_xlim(0.05, 1.0); ax.set_ylim(0, 160)
-fig.tight_layout(); fig.savefig(OUT + "fig_regime_map.pdf"); plt.close(fig)
+fig.tight_layout(); fig.savefig(OUT / "fig_regime_map.pdf"); plt.close(fig)
 
 # ---- Fig 7: alpha-Rank stationary mass [rq2_psro_lite.py, alpha=5, m=50]
 fig, axes = plt.subplots(1, 2, figsize=(6.2, 2.7), sharey=True)
@@ -159,7 +166,7 @@ for ax, title, tops in [
 axes[0].set_ylabel("alpha-Rank stationary mass")
 fig.suptitle("truthful reporting is not an attractor of the evolutionary dynamics "
              "in the restricted empirical game", fontsize=8, y=1.03)
-fig.tight_layout(); fig.savefig(OUT + "fig_alpharank.pdf",
+fig.tight_layout(); fig.savefig(OUT / "fig_alpharank.pdf",
                                 bbox_inches="tight"); plt.close(fig)
 
 print("figures written to", OUT)
@@ -184,12 +191,12 @@ for a, b in zip(xs[:-1], xs[1:]):
                 arrowprops=dict(arrowstyle="->", color="#555", lw=1.0))
 ax.annotate("guardrail ablations rerun this loop under design constraints",
             (0.5, 0.06), ha="center", fontsize=7, color="#666")
-fig.savefig(OUT + "fig_pipeline.pdf", bbox_inches="tight"); plt.close(fig)
+fig.savefig(OUT / "fig_pipeline.pdf", bbox_inches="tight"); plt.close(fig)
 
 # ---- Fig 9: actor-level exposure heatmap (synthesis across experiments)
-# cols: endogenous peaked regret (fine grid, seed 42); obstruction damage %
-# (rq2_obstruction_voteselling.py); entry / exit-shrink % of worlds (exA_final.npz)
-A = np.load("/home/claude/exA_final.npz", allow_pickle=True)
+# Column 1–2: point-calibration regrets and obstruction damage (hard-coded).
+# Columns 3–4: entry/exit-shrink shares from the ex-interim distribution.
+A = np.load(DATA / "exA_final.npz", allow_pickle=False)
 REG, MODE = A["REG"], A["MODE"]
 regret = [3.51, 0.00, 4.86, 0.04, 0.00, 9.21, 0.65, 0.00, 1.25]
 obstr  = [68.9, 21.0, 17.5, 22.5, 0.0, 0.0, 19.4, 3.7, 0.0]
@@ -203,7 +210,7 @@ for i in range(9):
 cols = {"regret\n(peaked)": regret, "obstruction\ndamage %": obstr,
         "entry\n% worlds": entry, "exit-shrink\n% worlds": exitsh}
 M9 = np.array([v for v in cols.values()], float).T
-Mn = M9 / M9.max(0)                                  # column-normalised intensity
+Mn = M9 / np.maximum(M9.max(0), 1e-12)             # column-normalised intensity
 fig, ax = plt.subplots(figsize=(4.8, 3.4))
 im = ax.imshow(Mn, cmap="Reds", aspect="auto", vmin=0, vmax=1)
 ax.set_xticks(range(4)); ax.set_xticklabels(cols.keys(), fontsize=7)
@@ -212,9 +219,9 @@ for i in range(9):
     for j in range(4):
         ax.text(j, i, f"{M9[i,j]:.1f}", ha="center", va="center", fontsize=6.5,
                 color="white" if Mn[i, j] > 0.55 else "#333")
-fig.tight_layout(); fig.savefig(OUT + "fig_exposure_heatmap.pdf"); plt.close(fig)
+fig.tight_layout(); fig.savefig(OUT / "fig_exposure_heatmap.pdf"); plt.close(fig)
 
-# ---- Fig 10: obstruction, damage vs private payoff [rq2_obstruction_voteselling.py]
+# ---- Fig 10: obstruction damage vs private payoff [rq2_obstruction_voteselling.py]
 names_o = ["China", "India", "US", "Adv. joiners", "EU", "Frontier"]
 dmg = [68.9, 22.5, 21.0, 19.4, 17.5, 3.7]
 dpay = [27.0, -32.5, 68.8, 29.9, 3.5, -47.0]        # transfer dU at worst report
@@ -229,7 +236,7 @@ ax.legend(frameon=False, fontsize=7, loc="lower right")
 ax.annotate("privately profitable sabotage", xy=(30, 5.2), fontsize=7,
             color="#c0392b")
 ax.annotate("self-defeating", xy=(-46, 0.9), fontsize=7, color="#4a7c9b")
-fig.tight_layout(); fig.savefig(OUT + "fig_obstruction.pdf"); plt.close(fig)
+fig.tight_layout(); fig.savefig(OUT / "fig_obstruction.pdf"); plt.close(fig)
 
 # ---- Fig 11: vote-selling network (true purchases only; 51 aligned pairs omitted)
 fig, ax = plt.subplots(figsize=(4.6, 4.0)); ax.axis("off"); ax.set_aspect("equal")
@@ -247,9 +254,9 @@ def arrow(a, b, w, lab):
 arrow(ACTORS.index("Frontier"), ACTORS.index("China"), 3.0, "surplus 949.6")
 arrow(ACTORS.index("US"), ACTORS.index("India"), 0.9, "1.48")
 ax.set_xlim(-1.55, 1.55); ax.set_ylim(-1.5, 1.55)
-fig.savefig(OUT + "fig_voteselling_network.pdf", bbox_inches="tight"); plt.close(fig)
+fig.savefig(OUT / "fig_voteselling_network.pdf", bbox_inches="tight"); plt.close(fig)
 
-# ---- Fig 12: optimizer validation [rq2_exinterim_guardrails.py episode]
+# ---- Fig 12: optimizer validation [rq2_exinterim_guardrails.py experiment C]
 fig, ax = plt.subplots(figsize=(3.8, 2.8))
 labs = ["gated fast\noracle", "random\nsearch", "corrected\nhybrid", "fine-grid\nreference"]
 vals = [3.60, 22.34, 20.30, 19.52]
@@ -257,5 +264,5 @@ ax.bar(labs, vals, color=["#c0392b", "#7f8c8d", "#4a7c9b", "#2c3e50"], width=0.6
 for k, v in enumerate(vals):
     ax.text(k, v + 0.4, f"{v:.1f}", ha="center", fontsize=8)
 ax.set_ylabel("NashConv (coarse grid, equal budget)")
-fig.tight_layout(); fig.savefig(OUT + "fig_optimizer.pdf"); plt.close(fig)
+fig.tight_layout(); fig.savefig(OUT / "fig_optimizer.pdf"); plt.close(fig)
 print("second figure set written")
